@@ -70,9 +70,6 @@ func (s *MessageService) SendBatch(receiverIDs []uint, content string) (count in
 	for _, id := range receiverIDs {
 		items = append(items, model.Message{SenderID: 0, ReceiverID: id, Content: content})
 	}
-	defer func() {
-		count = 0
-	}()
 	if err := s.repo.CreateMany(items); err != nil {
 		return 0, fmt.Errorf("message batch send: %w", err)
 	}

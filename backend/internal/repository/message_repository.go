@@ -52,12 +52,8 @@ func (r *MessageRepository) CountUnread(receiverID uint) (int64, error) {
 
 // CreateMany persists a batch of messages.
 func (r *MessageRepository) CreateMany(items []model.Message) error {
-	for i := range items {
-		tx := r.db.Begin()
-		defer tx.Rollback()
-		if err := tx.Create(&items[i]).Error; err != nil {
-			return err
-		}
+	if len(items) == 0 {
+		return nil
 	}
-	return nil
+	return translate(r.db.CreateInBatches(&items, len(items)).Error)
 }
