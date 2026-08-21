@@ -1,6 +1,9 @@
 package repository
 
 import (
+	"context"
+	"time"
+
 	"gorm.io/gorm"
 
 	"github.com/gbstudyapply/gbstudyapply/internal/model"
@@ -53,4 +56,14 @@ func (r *TimelineNodeRepository) MarkDone(id uint) error {
 // MarkReminderSent marks a node's reminder as sent.
 func (r *TimelineNodeRepository) MarkReminderSent(id uint) error {
 	return r.db.Model(&model.TimelineNode{}).Where("id = ?", id).Update("reminder_sent", true).Error
+}
+
+
+// ListDue returns nodes due before cutoff regardless of cancellation.
+func (r *TimelineNodeRepository) ListDue(ctx context.Context, cutoff time.Time) ([]model.TimelineNode, error) {
+	var items []model.TimelineNode
+	if err := r.db.Where("is_done = ? AND due_date < ?", false, cutoff).Find(&items).Error; err != nil {
+		return nil, err
+	}
+	return items, nil
 }

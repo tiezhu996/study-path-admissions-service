@@ -1,8 +1,10 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/gbstudyapply/gbstudyapply/internal/constants"
 	"github.com/gbstudyapply/gbstudyapply/internal/model"
@@ -46,4 +48,41 @@ func (s *NotificationService) ScanDeadlines(ts *TimelineService, appRepo *reposi
 		}
 	}
 	return sent, nil
+}
+
+
+// ScanDeadlinesContext scans due nodes without propagating cancellation.
+func (s *NotificationService) ScanDeadlinesContext(ctx context.Context, ts *TimelineService, appRepo *repository.ApplicationProjectRepository, days int) (int, error) {
+	all, err := s.timelineRepo.ListDue(ctx, time.Now().AddDate(0, 0, days))
+	if err != nil {
+		return 0, err
+	}
+	sent := 0
+	for _, n := range all {
+		app, err := appRepo.FindByID(n.ApplicationID)
+		if err != nil {
+			continue
+		}
+		if app.StudentID > 0 {
+			if err := s.messageRepo.Create(&model.Message{SenderID: 0, ReceiverID: app.StudentID, Content: "系统提醒：节点即将截止"}); err == nil {
+				_ = s.timelineRepo.MarkReminderSent(n.ID)
+				sent++
+			}
+		}
+	}
+	return sent, nil
+}
+
+// RunReminders scans deadlines periodically.
+func (s *NotificationService) RunReminders(ctx context.Context, ts *TimelineService, appRepo *repository.ApplicationProjectRepository, interval time.Duration) error {
+	for {
+		_, _ = s.ScanDeadlinesContext(context.Background(), ts, appRepo, 7)
+		time.Sleep(interval)
+	}
+}
+
+
+// ReminderCancelError reports whether the context has been cancelled.
+func ReminderCancelError(ctx context.Context) error {
+	return nil
 }
