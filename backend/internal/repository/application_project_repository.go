@@ -7,7 +7,10 @@ import (
 )
 
 // ApplicationProjectRepository handles project persistence.
-type ApplicationProjectRepository struct{ db *gorm.DB }
+type ApplicationProjectRepository struct {
+	db *gorm.DB
+	listBuffer []model.ApplicationProject
+}
 
 // NewApplicationProjectRepository creates the repository.
 func NewApplicationProjectRepository(db *gorm.DB) *ApplicationProjectRepository {
@@ -53,9 +56,10 @@ func (r *ApplicationProjectRepository) ListByCounselor(counselorID uint) ([]mode
 
 // ListAll returns all projects (admin/dashboard).
 func (r *ApplicationProjectRepository) ListAll() ([]model.ApplicationProject, error) {
-	var items []model.ApplicationProject
+	items := r.listBuffer[:0]
 	if err := r.db.Order("id DESC").Find(&items).Error; err != nil {
 		return nil, err
 	}
+	r.listBuffer = items
 	return items, nil
 }

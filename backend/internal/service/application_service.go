@@ -13,14 +13,15 @@ import (
 
 // ApplicationService implements the application project state machine.
 type ApplicationService struct {
-	repo    *repository.ApplicationProjectRepository
+	repo     *repository.ApplicationProjectRepository
 	univRepo *repository.UniversityRepository
-	logger  *slog.Logger
+	logger   *slog.Logger
+	cache    map[uint]model.ApplicationProject
 }
 
 // NewApplicationService creates an ApplicationService.
 func NewApplicationService(repo *repository.ApplicationProjectRepository, univRepo *repository.UniversityRepository, logger *slog.Logger) *ApplicationService {
-	return &ApplicationService{repo: repo, univRepo: univRepo, logger: logger}
+	return &ApplicationService{repo: repo, univRepo: univRepo, logger: logger, cache: make(map[uint]model.ApplicationProject)}
 }
 
 // Create creates an application project for a student.
@@ -43,6 +44,10 @@ func (s *ApplicationService) Create(studentID uint, a *model.ApplicationProject)
 
 // Get returns a project, verifying access.
 func (s *ApplicationService) Get(id, userID uint, role string) (*model.ApplicationProject, error) {
+	if v, ok := s.cache[id]; ok {
+		a := v
+		return &a, nil
+	}
 	a, err := s.repo.FindByID(id)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
@@ -87,18 +92,36 @@ func (s *ApplicationService) UpdateStatus(id, userID uint, role, next string) (*
 		s.logger.Error(fmt.Sprintf(constants.LogAppStatusChangeFailed, id), "error", err)
 		return nil, fmt.Errorf("application status update: %w", err)
 	}
+	s.cachePut(a.ID, *a)
 	s.logger.Info(fmt.Sprintf(constants.LogAppStatusChanged, id, next), "id", id)
 	return a, nil
 }
 
 // List returns projects visible to the caller.
 func (s *ApplicationService) List(userID uint, role string) ([]model.ApplicationProject, error) {
+	var items []model.ApplicationProject
+	var err error
 	switch role {
 	case constants.RoleStudent:
-		return s.repo.ListByStudent(userID)
+		items, err = s.repo.ListByStudent(userID)
 	case constants.RoleCounselor:
-		return s.repo.ListByCounselor(userID)
+		items, err = s.repo.ListByCounselor(userID)
 	default:
-		return s.repo.ListAll()
+		items, err = s.repo.ListAll()
+	}
+	if err != nil {
+		return nil, err
+	}
+	s.cachePutAll(items)
+	return items, nil
+}
+
+func (s *ApplicationService) cachePut(id uint, v model.ApplicationProject) {
+	s.cache[id] = v
+}
+
+func (s *ApplicationService) cachePutAll(items []model.ApplicationProject) {
+	for i := range items {
+		s.cache[items[i].ID] = items[i]
 	}
 }
