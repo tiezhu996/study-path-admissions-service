@@ -1,0 +1,49 @@
+package handler
+
+import (
+	"io"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+
+	"github.com/gbstudyapply/gbstudyapply/internal/config"
+	"github.com/gbstudyapply/gbstudyapply/internal/middleware"
+	"github.com/gbstudyapply/gbstudyapply/internal/model"
+	"github.com/gbstudyapply/gbstudyapply/internal/repository"
+	"github.com/gbstudyapply/gbstudyapply/internal/service"
+)
+
+func setupUserService(t *testing.T) (*service.UserService, *gorm.DB) {
+	t.Helper()
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil { t.Fatalf("open: %v", err) }
+	if err := db.AutoMigrate(&model.User{}); err != nil { t.Fatalf("migrate: %v", err) }
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	repo := repository.NewUserRepository(db)
+	cfg := &config.Config{JWTSecret:"test-secret", JWTExpire: time.Hour}
+	svc := service.NewUserService(repo, logger, cfg)
+	return svc, db
+}
+
+func TestLoginMissingUser401P901(t *testing.T) {
+	svc, _ := setupUserService(t)
+	h := NewUserHandler(svc, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.Use(middleware.ErrorHandler(slog.New(slog.NewTextHandler(io.Discard, nil))))
+	r.POST("/users/login", h.Login)
+	req := httptest.NewRequest(http.MethodPost, "/users/login", strings.NewReader(`{"username":"ghost","password":"secret"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d; body=%s", w.Code, http.StatusUnauthorized, w.Body.String())
+	}
+}

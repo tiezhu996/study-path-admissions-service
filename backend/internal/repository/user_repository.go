@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"fmt"
+
 	"gorm.io/gorm"
 
 	"github.com/gbstudyapply/gbstudyapply/internal/model"
@@ -19,7 +21,7 @@ func (r *UserRepository) Create(u *model.User) error { return translate(r.db.Cre
 func (r *UserRepository) FindByUsername(username string) (*model.User, error) {
 	var u model.User
 	if err := translate(r.db.Where("username = ?", username).First(&u).Error); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("user find: %v", err)
 	}
 	return &u, nil
 }
@@ -28,7 +30,7 @@ func (r *UserRepository) FindByUsername(username string) (*model.User, error) {
 func (r *UserRepository) FindByID(id uint) (*model.User, error) {
 	var u model.User
 	if err := translate(r.db.First(&u, id).Error); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("user find: %v", err)
 	}
 	return &u, nil
 }
