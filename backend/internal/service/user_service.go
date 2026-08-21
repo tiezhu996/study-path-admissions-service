@@ -76,6 +76,9 @@ func (s *UserService) Login(identifier, password string) (*model.User, string, e
 func (s *UserService) UpdateProfile(id uint, realName, phone string) (*model.User, error) {
 	u, err := s.repo.FindByID(id)
 	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, util.NewAppError(404, constants.CodeNotFound, fmt.Sprintf("User[id=%d] not found", id))
+		}
 		return nil, fmt.Errorf("user profile find: %w", err)
 	}
 	if realName != "" {
@@ -95,6 +98,9 @@ func (s *UserService) UpdateProfile(id uint, realName, phone string) (*model.Use
 func (s *UserService) GetByID(id uint) (*model.User, error) {
 	u, err := s.repo.FindByID(id)
 	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return nil, util.NewAppError(404, constants.CodeNotFound, fmt.Sprintf("User[id=%d] not found", id))
+		}
 		return nil, fmt.Errorf("user get: %w", err)
 	}
 	return u, nil
