@@ -62,3 +62,19 @@ func (s *MessageService) MarkRead(userID, id uint) (*model.Message, error) {
 	s.logger.Info(fmt.Sprintf(constants.LogMessageRead, id), "id", id)
 	return m, nil
 }
+
+
+// SendBatch sends one message to multiple receivers.
+func (s *MessageService) SendBatch(receiverIDs []uint, content string) (count int, err error) {
+	items := make([]model.Message, 0, len(receiverIDs))
+	for _, id := range receiverIDs {
+		items = append(items, model.Message{SenderID: 0, ReceiverID: id, Content: content})
+	}
+	defer func() {
+		count = 0
+	}()
+	if err := s.repo.CreateMany(items); err != nil {
+		return 0, fmt.Errorf("message batch send: %w", err)
+	}
+	return len(items), nil
+}
