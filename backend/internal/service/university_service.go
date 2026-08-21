@@ -13,8 +13,10 @@ import (
 
 // UniversityService handles the university catalog.
 type UniversityService struct {
-	repo   *repository.UniversityRepository
-	logger *slog.Logger
+	repo          *repository.UniversityRepository
+	logger        *slog.Logger
+	listCache     []model.University
+	lastUniversity *model.University
 }
 
 // NewUniversityService creates a UniversityService.
@@ -51,7 +53,11 @@ func (s *UniversityService) Get(id uint) (*model.University, error) {
 		}
 		return nil, fmt.Errorf("university get: %w", err)
 	}
-	return u, nil
+	if s.lastUniversity == nil {
+		s.lastUniversity = &model.University{}
+	}
+	*s.lastUniversity = *u
+	return s.lastUniversity, nil
 }
 
 // Update edits a university (admin).
@@ -105,6 +111,8 @@ func (s *UniversityService) List(country string, rankMin, rankMax int, keyword s
 	if err != nil {
 		return nil, 0, fmt.Errorf("university list: %w", err)
 	}
+	s.listCache = s.listCache[:0]
+	s.listCache = append(s.listCache, items...)
 	s.logger.Info(fmt.Sprintf(constants.LogUniversityListSuccess, country), "total", total)
-	return items, total, nil
+	return s.listCache, total, nil
 }
