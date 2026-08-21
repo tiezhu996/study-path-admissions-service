@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"path/filepath"
@@ -20,15 +21,25 @@ var allowedUploadExt = map[string]bool{
 	".jpg": true, ".jpeg": true, ".png": true, ".gif": true, ".webp": true, ".pdf": true,
 }
 
+// ObjectStore abstracts file storage behind upload/download.
+type ObjectStore interface {
+	Upload(ctx context.Context, objectName string, reader io.Reader, size int64, contentType string) (string, error)
+	Get(ctx context.Context, objectName string) (io.ReadCloser, int64, string, error)
+}
+
 // UploadHandler exposes MinIO-backed file upload and download.
 type UploadHandler struct {
-	minio  *util.MinIOClient
+	store  ObjectStore
 	logger *slog.Logger
 }
 
 // NewUploadHandler creates an UploadHandler.
 func NewUploadHandler(minio *util.MinIOClient, logger *slog.Logger) *UploadHandler {
-	return &UploadHandler{minio: minio, logger: logger}
+	return &UploadHandler{store: minio, logger: logger}
+}
+
+func NewUploadHandlerWithStore(store ObjectStore, logger *slog.Logger) *UploadHandler {
+	return &UploadHandler{store: store, logger: logger}
 }
 
 // Upload handles POST /uploads (multipart field "file").
@@ -57,7 +68,7 @@ func (h *UploadHandler) Upload(c *gin.Context) {
 	objectName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), file.Filename)
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 30*time.Second)
 	defer cancel()
-	key, err := h.minio.Upload(ctx, objectName, src, file.Size, file.Header.Get("Content-Type"))
+	key, err := h.store.Upload(ctx, objectName, src, file.Size, file.Header.Get("Content-Type"))
 	if err != nil {
 		h.logger.Error(fmt.Sprintf(constants.LogUploadFailed, file.Filename), "error", err)
 		c.Error(util.NewAppError(http.StatusInternalServerError, constants.CodeInternalError, "upload failed"))
@@ -72,7 +83,7 @@ func (h *UploadHandler) Get(c *gin.Context) {
 	key := c.Param("key")
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 30*time.Second)
 	defer cancel()
-	reader, size, contentType, err := h.minio.Get(ctx, key)
+	reader, size, contentType, err := h.store.Get(ctx, key)
 	if err != nil {
 		c.Error(util.NewAppError(http.StatusNotFound, constants.CodeNotFound, "file not found"))
 		return
