@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sync"
 
 	"github.com/gbstudyapply/gbstudyapply/internal/constants"
 	"github.com/gbstudyapply/gbstudyapply/internal/model"
@@ -17,6 +18,7 @@ type ApplicationService struct {
 	univRepo *repository.UniversityRepository
 	logger   *slog.Logger
 	cache    map[uint]model.ApplicationProject
+	cacheMu  sync.RWMutex
 }
 
 // NewApplicationService creates an ApplicationService.
@@ -44,10 +46,18 @@ func (s *ApplicationService) Create(studentID uint, a *model.ApplicationProject)
 
 // Get returns a project, verifying access.
 func (s *ApplicationService) Get(id, userID uint, role string) (*model.ApplicationProject, error) {
+	s.cacheMu.RLock()
 	if v, ok := s.cache[id]; ok {
 		a := v
+		s.cacheMu.RUnlock()
+		if role == constants.RoleStudent && a.StudentID != userID {
+			return nil, util.NewAppError(403, constants.CodeForbidden,
+				fmt.Sprintf("ApplicationProject[id=%d] get failed: user_id=%d not student owner", id, userID))
+		}
 		return &a, nil
 	}
+	s.cacheMu.RUnlock()
+
 	a, err := s.repo.FindByID(id)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
@@ -59,6 +69,9 @@ func (s *ApplicationService) Get(id, userID uint, role string) (*model.Applicati
 		return nil, util.NewAppError(403, constants.CodeForbidden,
 			fmt.Sprintf("ApplicationProject[id=%d] get failed: user_id=%d not student owner", id, userID))
 	}
+	s.cacheMu.Lock()
+	s.cache[id] = *a
+	s.cacheMu.Unlock()
 	return a, nil
 }
 
@@ -112,16 +125,22 @@ func (s *ApplicationService) List(userID uint, role string) ([]model.Application
 	if err != nil {
 		return nil, err
 	}
-	s.cachePutAll(items)
-	return items, nil
+	out := make([]model.ApplicationProject, len(items))
+	copy(out, items)
+	s.cachePutAll(out)
+	return out, nil
 }
 
 func (s *ApplicationService) cachePut(id uint, v model.ApplicationProject) {
+	s.cacheMu.Lock()
 	s.cache[id] = v
+	s.cacheMu.Unlock()
 }
 
 func (s *ApplicationService) cachePutAll(items []model.ApplicationProject) {
+	s.cacheMu.Lock()
 	for i := range items {
 		s.cache[items[i].ID] = items[i]
 	}
+	s.cacheMu.Unlock()
 }
