@@ -12,4 +12,5 @@ func registerRecommendationRoutes(v1 *gin.RouterGroup, cfg *config.Config, h *ha
 	recs := v1.Group("/recommendations")
 	recs.GET("/student/:studentId", middleware.AuthRequired(cfg), h.ListByStudent)
 	recs.POST("", middleware.AuthRequired(cfg), middleware.RequireRole("counselor"), limiter.Limit(), h.Create)
+	recs.PUT("/:id/status", middleware.AuthRequired(cfg), middleware.RequireRole("counselor", "admin"), limiter.Limit(), h.UpdateStatus)
 }

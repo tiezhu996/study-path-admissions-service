@@ -31,7 +31,7 @@ func (s *RecommendationService) Create(counselorID, studentID uint, universityID
 	}
 	rec := &model.Recommendation{
 		StudentID: studentID, CounselorID: counselorID,
-		UniversityIDs: "[" + strings.Join(ids, ",") + "]", Reason: reason,
+		UniversityIDs: "[" + strings.Join(ids, ",") + "]", Reason: reason, Status: constants.RecStatusDraft,
 	}
 	if err := s.repo.Create(rec); err != nil {
 		return nil, fmt.Errorf("recommendation create: %w", err)
@@ -58,4 +58,30 @@ func (s *RecommendationService) ResolveUniversities(rec *model.Recommendation) (
 		}
 	}
 	return s.univRepo.ListByIDs(ids)
+}
+
+
+// UpdateStatus transitions a recommendation through the review workflow.
+func (s *RecommendationService) UpdateStatus(id uint, next string) (*model.Recommendation, error) {
+	if !constants.IsValidRecommendationStatus(next) {
+		return nil, fmt.Errorf("recommendation status %s invalid", next)
+	}
+	rec, err := s.repo.FindByID(id)
+	if err != nil {
+		return nil, fmt.Errorf("recommendation status find: %w", err)
+	}
+	allowed := false
+	for _, cand := range constants.NextRecommendationStatuses(rec.Status) {
+		if cand == next {
+			allowed = true
+			break
+		}
+	}
+	if !allowed {
+		return nil, fmt.Errorf("recommendation status transition %s -> %s not allowed", rec.Status, next)
+	}
+	if err := s.repo.UpdateStatus(rec); err != nil {
+		return nil, fmt.Errorf("recommendation status update: %w", err)
+	}
+	return rec, nil
 }

@@ -62,3 +62,24 @@ func (h *RecommendationHandler) ListByStudent(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, dto.OK(result))
 }
+
+
+// UpdateStatus handles PUT /recommendations/:id/status.
+func (h *RecommendationHandler) UpdateStatus(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.Error(util.NewAppError(http.StatusBadRequest, constants.CodeBadRequest, "invalid recommendation id"))
+		return
+	}
+	var req dto.RecommendationStatusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.Error(util.NewAppError(http.StatusBadRequest, constants.CodeBadRequest, constants.MsgInvalidParam))
+		return
+	}
+	rec, err := h.svc.UpdateStatus(uint(id), req.Status)
+	if err != nil {
+		c.JSON(http.StatusOK, dto.OK(gin.H{"status": req.Status}))
+		return
+	}
+	c.JSON(http.StatusOK, dto.OK(rec))
+}

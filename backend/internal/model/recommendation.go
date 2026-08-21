@@ -9,5 +9,6 @@ type Recommendation struct {
 	CounselorID  uint      `gorm:"index;not null" json:"counselor_id"`
 	UniversityIDs string   `gorm:"type:json" json:"university_ids"`
 	Reason       string    `gorm:"type:text" json:"reason"`
+	Status       string    `gorm:"size:16;default:draft;index" json:"status"`
 	CreatedAt    time.Time `json:"created_at"`
 }

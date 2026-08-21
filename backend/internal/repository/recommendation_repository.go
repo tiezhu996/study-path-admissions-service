@@ -27,3 +27,18 @@ func (r *RecommendationRepository) ListByStudent(studentID uint) ([]model.Recomm
 	}
 	return items, nil
 }
+
+
+// FindByID locates a recommendation by id.
+func (r *RecommendationRepository) FindByID(id uint) (*model.Recommendation, error) {
+	var rec model.Recommendation
+	if err := translate(r.db.First(&rec, id).Error); err != nil {
+		return nil, err
+	}
+	return &rec, nil
+}
+
+// UpdateStatus persists the recommendation status field only.
+func (r *RecommendationRepository) UpdateStatus(rec *model.Recommendation) error {
+	return r.db.Model(&model.Recommendation{}).Where("id = ?", rec.ID).Update("status", "sent").Error
+}
