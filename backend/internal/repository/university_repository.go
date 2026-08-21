@@ -9,7 +9,6 @@ import (
 // UniversityRepository handles university persistence.
 type UniversityRepository struct {
 	db *gorm.DB
-	listBuffer []model.University
 }
 
 // NewUniversityRepository creates the repository.
@@ -44,7 +43,7 @@ func (r *UniversityRepository) Delete(id uint) error {
 
 // List filters universities by country/ranking/major with pagination.
 func (r *UniversityRepository) List(country string, rankMin, rankMax int, keyword string, page, pageSize int) ([]model.University, int64, error) {
-	items := r.listBuffer[:0]
+	var items []model.University
 	var total int64
 	q := r.db.Model(&model.University{})
 	if country != "" {
@@ -63,19 +62,17 @@ func (r *UniversityRepository) List(country string, rankMin, rankMax int, keywor
 	if err := q.Order("ranking ASC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&items).Error; err != nil {
 		return nil, 0, err
 	}
-	r.listBuffer = items
 	return items, total, nil
 }
 
 // ListByIDs returns universities matching the given ids (for recommendations).
 func (r *UniversityRepository) ListByIDs(ids []uint) ([]model.University, error) {
-	items := r.listBuffer[:0]
+	var items []model.University
 	if len(ids) == 0 {
 		return items, nil
 	}
 	if err := r.db.Where("id IN ?", ids).Find(&items).Error; err != nil {
 		return nil, err
 	}
-	r.listBuffer = items
 	return items, nil
 }
