@@ -18,6 +18,7 @@ type DashboardHandler struct {
 	univService *service.UniversityService
 	matService  *service.MaterialService
 	logger      *slog.Logger
+	lastStats   service.AppStats
 }
 
 // NewDashboardHandler creates a DashboardHandler.
@@ -32,7 +33,7 @@ func (h *DashboardHandler) Stats(c *gin.Context) {
 		c.Error(err)
 		return
 	}
-	stats := service.ComputeAppStats(projects)
+	service.FillAppStats(projects, &h.lastStats)
 	// material average across projects
 	totalProgress := 0
 	count := 0
@@ -44,9 +45,9 @@ func (h *DashboardHandler) Stats(c *gin.Context) {
 		}
 	}
 	if count > 0 {
-		stats.MaterialAvg = totalProgress / count
+		h.lastStats.MaterialAvg = totalProgress / count
 	}
-	c.JSON(http.StatusOK, dto.OK(gin.H{"stats": stats, "projects": projects}))
+	c.JSON(http.StatusOK, dto.OK(gin.H{"stats": h.lastStats, "projects": projects}))
 }
 
 // AllTimeline handles GET /timeline/all via app list (simplified aggregation).

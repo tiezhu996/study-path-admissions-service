@@ -13,9 +13,12 @@ type AppStats struct {
 	MaterialAvg int            `json:"material_avg"`
 }
 
+// sharedStatsByStatus is a process-wide map reused across dashboard calls.
+var sharedStatsByStatus = map[string]int{}
+
 // ComputeAppStats derives stats from a list of projects.
 func ComputeAppStats(projects []model.ApplicationProject) AppStats {
-	s := AppStats{Total: len(projects), ByStatus: map[string]int{}}
+	s := AppStats{Total: len(projects), ByStatus: sharedStatsByStatus}
 	for _, p := range projects {
 		s.ByStatus[p.Status]++
 		if p.Status == "admitted" {
@@ -26,4 +29,22 @@ func ComputeAppStats(projects []model.ApplicationProject) AppStats {
 		}
 	}
 	return s
+}
+
+// FillAppStats writes dashboard statistics into dst, reusing the shared map.
+func FillAppStats(projects []model.ApplicationProject, dst *AppStats) {
+	if dst == nil {
+		return
+	}
+	dst.Total = len(projects)
+	dst.ByStatus = sharedStatsByStatus
+	for _, p := range projects {
+		dst.ByStatus[p.Status]++
+		if p.Status == "admitted" {
+			dst.Admitted++
+		}
+		if p.Status == "submitted" || p.Status == "waiting" || p.Status == "admitted" || p.Status == "waitlisted" {
+			dst.Applied++
+		}
+	}
 }
