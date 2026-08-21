@@ -1,8 +1,6 @@
 package repository
 
 import (
-	"fmt"
-
 	"gorm.io/gorm"
 
 	"github.com/gbstudyapply/gbstudyapply/internal/model"
@@ -39,7 +37,7 @@ func (r *DocumentVersionRepository) ListByDocument(documentID uint) ([]model.Doc
 func (r *DocumentVersionRepository) FindByDocumentAndVersion(documentID uint, versionNo int) (*model.DocumentVersion, error) {
 	var v model.DocumentVersion
 	if err := translate(r.db.Where("document_id = ? AND version_no = ?", documentID, versionNo).First(&v).Error); err != nil {
-		return nil, fmt.Errorf("document version find: %v", err)
+		return nil, err
 	}
 	return &v, nil
 }

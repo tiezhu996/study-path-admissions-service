@@ -124,7 +124,7 @@ func (h *DocumentHandler) Rollback(c *gin.Context) {
 	}
 	d, err := h.svc.Rollback(uint(id), req.VersionNo)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, dto.Fail(constants.CodeInternalError, constants.MsgInternalError))
+		c.Error(err)
 		return
 	}
 	c.JSON(http.StatusOK, dto.OK(d))
