@@ -107,10 +107,6 @@ func (s *DocumentService) ListVersions(documentID uint) ([]model.DocumentVersion
 func (s *DocumentService) Rollback(documentID uint, versionNo int) (*model.Document, error) {
 	v, err := s.verRepo.FindByDocumentAndVersion(documentID, versionNo)
 	if err != nil {
-		if errors.Is(err, repository.ErrNotFound) {
-			return nil, util.NewAppError(404, constants.CodeNotFound,
-				fmt.Sprintf("DocumentVersion[document_id=%d version=%d] not found", documentID, versionNo))
-		}
 		return nil, fmt.Errorf("document rollback find: %w", err)
 	}
 	d, err := s.docRepo.FindByID(documentID)

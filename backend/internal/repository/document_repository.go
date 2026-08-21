@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"fmt"
+
 	"gorm.io/gorm"
 
 	"github.com/gbstudyapply/gbstudyapply/internal/model"
@@ -24,7 +26,7 @@ func (r *DocumentRepository) CreateTx(tx *gorm.DB, d *model.Document) error {
 func (r *DocumentRepository) FindByID(id uint) (*model.Document, error) {
 	var d model.Document
 	if err := translate(r.db.First(&d, id).Error); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("document find: %v", err)
 	}
 	return &d, nil
 }
