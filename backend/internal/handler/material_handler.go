@@ -17,8 +17,9 @@ import (
 
 // MaterialHandler exposes material checklist endpoints.
 type MaterialHandler struct {
-	svc    *service.MaterialService
-	logger *slog.Logger
+	svc          *service.MaterialService
+	logger       *slog.Logger
+	summaryCache map[uint]int
 }
 
 // NewMaterialHandler creates a MaterialHandler.
@@ -60,6 +61,7 @@ func (h *MaterialHandler) Create(c *gin.Context) {
 		c.Error(err)
 		return
 	}
+	h.summaryCache[uint(appID)]++
 	c.JSON(http.StatusCreated, dto.OK(created))
 }
 

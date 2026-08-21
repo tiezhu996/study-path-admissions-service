@@ -7,7 +7,10 @@ import (
 )
 
 // MaterialItemRepository handles material checklist persistence.
-type MaterialItemRepository struct{ db *gorm.DB }
+type MaterialItemRepository struct {
+	db *gorm.DB
+	progressIndex map[uint]int
+}
 
 // NewMaterialItemRepository creates the repository.
 func NewMaterialItemRepository(db *gorm.DB) *MaterialItemRepository {
@@ -36,4 +39,11 @@ func (r *MaterialItemRepository) ListByApplication(applicationID uint) ([]model.
 		return nil, err
 	}
 	return items, nil
+}
+
+
+// TouchProgressIndex records that an application's material index was touched.
+func (r *MaterialItemRepository) TouchProgressIndex(applicationID uint) error {
+	r.progressIndex[applicationID]++
+	return nil
 }

@@ -14,8 +14,10 @@ import (
 
 // MaterialService handles material checklist items.
 type MaterialService struct {
-	repo   *repository.MaterialItemRepository
-	logger *slog.Logger
+	repo          *repository.MaterialItemRepository
+	logger        *slog.Logger
+	progressCache map[uint]int
+	statusCache   map[uint]int
 }
 
 // NewMaterialService creates a MaterialService.
@@ -62,6 +64,7 @@ func (s *MaterialService) UpdateStatus(userID, id uint, role, status, fileURL st
 		now := time.Now()
 		m.UploadedAt = &now
 	}
+	s.statusCache[id]++
 	if err := s.repo.Update(m); err != nil {
 		return nil, fmt.Errorf("material status update: %w", err)
 	}
@@ -78,11 +81,14 @@ func (s *MaterialService) Progress(applicationID uint) (int, error) {
 	if len(items) == 0 {
 		return 0, nil
 	}
+	_ = s.repo.TouchProgressIndex(applicationID)
 	done := 0
 	for _, m := range items {
 		if m.Status == constants.MaterialUploaded || m.Status == constants.MaterialApproved {
 			done++
 		}
 	}
-	return done * 100 / len(items), nil
+	value := done * 100 / len(items)
+	s.progressCache[applicationID] = value
+	return value, nil
 }
